@@ -1,0 +1,113 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from prettytable import PrettyTable
+from sklearn import metrics
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.utils.multiclass import unique_labels
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.cluster import KMeans
+import warnings
+warnings.filterwarnings('ignore')
+
+def elbow_method(x_data, save=True, show=True):
+    wcss_list = []
+    for i in range(1, 11):
+        kmeans = KMeans(n_clusters=i, init='k-means++')
+        kmeans.fit(x_data)
+        wcss_list.append(kmeans.inertia_)
+    plt.plot(range(1, 11), wcss_list)
+    plt.title('Graph of the Elobw method')
+    plt.xlabel('Number of clusters (k)')
+    plt.ylabel('wcss_list')
+    if save: plt.savefig('output/elbow_method.png')
+    if show: plt.show()
+
+def clustering(x_data, count_clusters, save=True, show=True):
+    print('-'*19, "Clustering", '-'*19)
+    kmeans = KMeans(n_clusters=count_clusters, init='k-means++')
+    y_predict = kmeans.fit_predict(x_data)
+    centroids = kmeans.cluster_centers_
+    np.set_printoptions(precision=3, suppress=True)
+    print('Centroids: ')
+    [print(i) for i in centroids]
+
+    cols = len(x_data[0])
+    titles = ['count packets', 'full size', 'avg size', 'msd size',
+              'full time', 'avg time', 'msd time', 'dir streams', 'rev streams']
+    colors = ['#%02x%02x%02x' % (i, i, i)
+              for i in range(0, 255, 255 // count_clusters)]
+
+    plt.rcParams.update({'font.size': 10})
+    fig, axs = plt.subplots(6, 6, figsize=(18, 6))
+    fig.tight_layout()
+    iter = 0
+    # Отрисовка графиков зависимости titles[row] от titles[col]
+    for row in range(cols):
+        for col in range(row + 1, cols):
+            _x = iter % 6
+            _y = iter // 6
+            axs[_y, _x].scatter(x_data[:, row], x_data[:, col], s=40,
+                                c=[colors[i] for i in y_predict])
+            axs[_y, _x].set(xlabel=titles[row], ylabel=titles[col])
+            axs[_y, _x].axes.xaxis.set_ticks([])
+            axs[_y, _x].axes.yaxis.set_ticks([])
+            axs[_y, _x].scatter(centroids[:, row],
+                                centroids[:, col], s=20, c='red')
+            iter += 1
+    plt.get_current_fig_manager().window.showMaximized()
+    if save: plt.savefig('output/clusters.png')
+    if show: plt.show()
+
+def get_confusion_matrix(y_ideal, y_predict, labels, save=True, show=True):
+    print('-'*16, "Confusion matrix", '-'*16)
+    conf_matrix = confusion_matrix(y_ideal, y_predict)
+    _, ax = plt.subplots(figsize=(7.5, 7.5))
+    ax.matshow(conf_matrix, cmap=plt.cm.viridis)
+    table = PrettyTable()
+    for i in range(conf_matrix.shape[0]):
+        for j in range(conf_matrix.shape[1]):
+            ax.text(j, i, conf_matrix[i, j], va='center',
+                    ha='center', size='xx-large', c='w')
+        table.add_row(conf_matrix[i])
+    print(table.get_string(header=False, border=False))
+    plt.xticks(range(len(labels)), labels)
+    plt.yticks(range(len(labels)), labels)
+    plt.xlabel('Predictions', fontsize=18)
+    plt.ylabel('Actuals', fontsize=18)
+    plt.title('Confusion Matrix', fontsize=18)
+    if save: plt.savefig('output/confusion_matrix.png')
+    if show: plt.show()
+
+def get_classification_report(y_ideal, y_predict, labels):
+    print('-'*13, "Classification  report", '-'*13)
+    print("Count errors:", np.sum(y_ideal != y_predict))
+    print("Accuracy: %.2f" % accuracy_score(y_ideal, y_predict))
+    print("Other metrics:")
+    p, r, f1, s = metrics.precision_recall_fscore_support(
+        y_ideal, y_predict, labels=labels)
+    _metrics = zip(labels, p, r, f1, s)
+    table = PrettyTable(["port", "precision", "recall", "f1-score", "count"])
+    table.float_format = '.2'
+    for row in _metrics:
+        table.add_row(row)
+    print(table)
+
+def classification(x_data, y_data, test_size=0.1, save=True, show=True):
+    # Чтобы сделать адекватную ROC кривую (как и матрицу ошибок)
+    # нужно чтобы в тестовой и обучающей выборке были как минимум по 1
+    # одинаковому порту. Например можно избавиться от портов на которых
+    # работал один поток, и разделить выборку как минимум по 1 в обучающую
+    # и тестовую
+    print('-'*17, "Classification", '-'*17)
+    knn = KNeighborsClassifier()
+    x_train, x_test, y_train, y_test = train_test_split(
+        x_data, y_data, test_size=test_size)
+    y_predict = np.array(knn.fit(x_train, y_train).predict(x_test))
+    print("Data size:", len(x_data))
+    print("Train size:", len(x_train))
+    print("Test size:", len(x_test))
+
+    labels = unique_labels(y_test, y_predict)
+    get_classification_report(y_test, y_predict, labels)
+    get_confusion_matrix(y_test, y_predict, labels, save, show)
