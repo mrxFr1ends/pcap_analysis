@@ -30,11 +30,18 @@ if __name__ == '__main__':
     streams = get_all_rows(args.db_name, "streams")
     # Убираем первые 5 колонок
     x = np.asarray(streams)[:, 5:].astype('float64')
+    # Берем колонку с source port
     ports = np.asarray(streams)[:, 3].astype('int32')
+    # Берем колонки с кол-вом пакетов, полным размером, 
+    # средним размером и полным временем
+    predict_data = x[:,[0,1,2,4]]
 
     _save = not args.no_save
     _show = not args.no_show
-    elbow_method(x, save=_save, show=True)
-    clusters = int(pyautogui.prompt("Enter number of clusters:", "Number of clusters"))
+    elbow_method(x, save=_save, show=_show)
+    if args.no_show: clusters = 3
+    else:
+        clusters = int(pyautogui.prompt("Enter number of clusters:", "Number of clusters"))
     clustering(x, clusters, save=_save, show=_show)
     classification(x, ports, save=_save, show=_show)
+    prediction(predict_data, ports, save=_save, show=_show)

@@ -6,6 +6,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.utils.multiclass import unique_labels
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.neural_network import MLPClassifier
 from sklearn.cluster import KMeans
 import warnings
 warnings.filterwarnings('ignore')
@@ -55,11 +56,10 @@ def clustering(x_data, count_clusters, save=True, show=True):
             axs[_y, _x].scatter(centroids[:, row],
                                 centroids[:, col], s=20, c='red')
             iter += 1
-    plt.get_current_fig_manager().window.showMaximized()
     if save: plt.savefig('output/clusters.png')
     if show: plt.show()
 
-def get_confusion_matrix(y_ideal, y_predict, labels, save=True, show=True):
+def get_confusion_matrix(y_ideal, y_predict, labels, title='Confusion Matrix', save=True, show=True):
     print('-'*16, "Confusion matrix", '-'*16)
     conf_matrix = confusion_matrix(y_ideal, y_predict)
     _, ax = plt.subplots(figsize=(7.5, 7.5))
@@ -71,12 +71,12 @@ def get_confusion_matrix(y_ideal, y_predict, labels, save=True, show=True):
                     ha='center', size='xx-large', c='w')
         table.add_row(conf_matrix[i])
     print(table.get_string(header=False, border=False))
-    plt.xticks(range(len(labels)), labels)
+    plt.xticks(range(len(labels)), labels, rotation=90)
     plt.yticks(range(len(labels)), labels)
     plt.xlabel('Predictions', fontsize=18)
     plt.ylabel('Actuals', fontsize=18)
-    plt.title('Confusion Matrix', fontsize=18)
-    if save: plt.savefig('output/confusion_matrix.png')
+    plt.title(title, fontsize=18)
+    if save: plt.savefig('output/'+title+'.png')
     if show: plt.show()
 
 def get_classification_report(y_ideal, y_predict, labels):
@@ -110,4 +110,24 @@ def classification(x_data, y_data, test_size=0.1, save=True, show=True):
 
     labels = unique_labels(y_test, y_predict)
     get_classification_report(y_test, y_predict, labels)
-    get_confusion_matrix(y_test, y_predict, labels, save, show)
+    get_confusion_matrix(y_test, y_predict, labels, save=save, show=show)
+
+def prediction(x_data, y_data, save=True, show=True):
+    print('-'*19, "Prediction", '-'*19)
+    y, counts = np.unique(y_data, return_counts=True)
+    pivot = y[counts == counts.max()][0]
+    print("Pivot value:", pivot)
+    y_ideal = np.array(y_data == pivot, dtype=int)
+    for window in np.linspace(1, int(len(x_data) * 0.9), 5, dtype=int):
+        predicts = []
+        classificator = MLPClassifier(max_iter=1)
+        for index in range(window, len(x_data)):
+            _x = x_data[index - window:index]
+            _y = y_ideal[index - window:index]
+            x_predict = x_data[index]
+            predict = classificator.fit(_x, _y).predict([x_predict])
+            predicts.extend(predict)
+        title = 'Confusion matrix for pivot {} and window size {}'.format(pivot, window)
+        print("Window size:", window)
+        get_classification_report(y_ideal[window:], predicts, labels=[0, 1])
+        get_confusion_matrix(y_ideal[window:], predicts, labels=[0, 1], title=title, save=save, show=show)

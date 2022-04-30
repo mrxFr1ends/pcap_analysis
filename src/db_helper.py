@@ -41,9 +41,9 @@ def pcap2db(file_name, db_name="database.db"):
         if iter >= bound:
             bound += step
             printProgressBar(iter, packets_size, length=40)
-        if len(buff[1]) < 14:
-            continue
-        eth = dpkt.ethernet.Ethernet(buff[1])
+        try:
+            eth = dpkt.ethernet.Ethernet(buff[1])
+        except: continue
         # Если нет протокола IP
         if eth.type != dpkt.ethernet.ETH_TYPE_IP:
             continue
@@ -91,6 +91,8 @@ def clear_db(db_name):
                 "[timestamp] FLOAT,"
                 "[size] LONG)")
     cur.executemany("INSERT INTO packets VALUES (?,?,?,?,?,?,?)", packets)
+    cur.close()
+    con.commit()
 
 # Функция удаления таблиц из баззы данных по переданному паттерну
 def delete_tables(db_name, pattern):
@@ -121,7 +123,8 @@ def delete_tables(db_name, pattern):
 # Функция выделения потоков
 def select_streams(db_name, packets_limit):
     # Удаление всех таблиц начинающих с stream
-    delete_tables(db_name, "stream%")
+    # delete_tables(db_name, "stream%")
+    clear_db(db_name)
     # Подключение к БД
     con = connect(db_name)
     cur = con.cursor()
