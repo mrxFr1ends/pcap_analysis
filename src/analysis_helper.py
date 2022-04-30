@@ -5,7 +5,7 @@ from sklearn import metrics
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.utils.multiclass import unique_labels
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve
 from sklearn.neural_network import MLPClassifier
 from sklearn.cluster import KMeans
 import warnings
@@ -93,6 +93,19 @@ def get_classification_report(y_ideal, y_predict, labels):
         table.add_row(row)
     print(table)
 
+def get_roc_curve(y_ideal, proba, title='ROC curve', show=True, save=True):
+    fpr, tpr, _ = roc_curve(y_ideal, proba)
+    plt.figure(figsize=(10, 8))
+    plt.plot(fpr, tpr, lw=2, label='ROC curve')
+    plt.plot([0, 1], [0, 1])
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC curve')
+    if save: plt.savefig('output/'+title+'.png')
+    if show: plt.show()
+
 def classification(x_data, y_data, test_size=0.1, save=True, show=True):
     # Чтобы сделать адекватную ROC кривую (как и матрицу ошибок)
     # нужно чтобы в тестовой и обучающей выборке были как минимум по 1
@@ -120,6 +133,7 @@ def prediction(x_data, y_data, save=True, show=True):
     y_ideal = np.array(y_data == pivot, dtype=int)
     for window in np.linspace(1, int(len(x_data) * 0.9), 5, dtype=int):
         predicts = []
+        proba = []
         classificator = MLPClassifier(max_iter=1)
         for index in range(window, len(x_data)):
             _x = x_data[index - window:index]
@@ -127,7 +141,12 @@ def prediction(x_data, y_data, save=True, show=True):
             x_predict = x_data[index]
             predict = classificator.fit(_x, _y).predict([x_predict])
             predicts.extend(predict)
-        title = 'Confusion matrix for pivot {} and window size {}'.format(pivot, window)
+            proba.extend(classificator.predict_proba([x_predict])[::,1])
+        
+        title = ' for pivot {} and window size {}'.format(pivot, window)
         print("Window size:", window)
         get_classification_report(y_ideal[window:], predicts, labels=[0, 1])
-        get_confusion_matrix(y_ideal[window:], predicts, labels=[0, 1], title=title, save=save, show=show)
+        get_confusion_matrix(y_ideal[window:], predicts, labels=[0, 1], 
+                             title='Confusion matrix' + title, save=save, show=show)
+        # TODO: Зачем это в prediction? Пока не понял. Нужно сделать в classification
+        get_roc_curve(y_ideal[window:], proba, title='ROC curve' + title, show=show, save=save)
