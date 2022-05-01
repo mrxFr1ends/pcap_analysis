@@ -1,0 +1,6 @@
+dpkt_fix==1.7
+matplotlib==3.5.0
+numpy==1.21.4
+prettytable==3.2.0
+PyAutoGUI==0.9.53
+scikit_learn==1.0.2
