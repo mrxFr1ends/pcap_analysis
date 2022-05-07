@@ -1,7 +1,6 @@
-from prettytable import PrettyTable
 import dpkt
 from sqlite3 import *
-from .utils import printProgressBar
+from .utils import print_table, printProgressBar
 import socket
 from math import sqrt
 
@@ -295,19 +294,29 @@ def print_statistic(db_name, rows_limit=50):
     print("Stream statistics:")
     statistics = cur.execute("SELECT id,count_packets,full_size,avg_size,msd_size,"
                              "full_time,avg_time,msd_time,dir_streams,rev_streams FROM streams").fetchall()
-
-    table = PrettyTable(["stream", "count packets", "size", "avg size", "msd size",
-                         "time", "avg time", "msd time", "direct stream", "reverse stream"])
-    for i, st in enumerate(statistics):
-        table.add_row([f"stream{st[0]}", st[1], st[2], f"{st[3]:.2f}",
-                      f"{st[4]:.2f}", f"{st[5]:.3f}", f"{st[6]:.3f}", f"{st[7]:.2f}", st[8], st[9]])
-        if i + 1 == rows_limit:
-            break
-    print(table)
-
-    if i + 1 < len(statistics):
-        print("Hidden", len(statistics) - i - 1, "threads")
+    print_table(statistics, 
+                ["stream", "count packets", "size", "avg size", "msd size",
+                "time", "avg time", "msd time", "direct stream", "reverse stream"], 
+                rows_limit=rows_limit)
     print("Count all threads: ", len(statistics))
 
     cur.close()
-    con.close()
+    con.commit()
+
+def get_ports_sorted_by_timestamp(db_name):
+    con = connect(db_name)
+    cur = con.cursor()
+
+    streams = cur.execute("SELECT id, port_source FROM streams").fetchall()
+    timestamps = []
+    for stream in streams:
+        packet = cur.execute(f"SELECT timestamp FROM stream{stream[0]}").fetchone()
+        timestamps.append([stream[1], packet])
+
+    timestamps.sort(key=lambda timestamp: timestamp[1])
+    ports = [x[0] for x in timestamps]
+
+    cur.close()
+    con.commit()
+
+    return ports

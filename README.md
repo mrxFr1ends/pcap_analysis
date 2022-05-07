@@ -30,14 +30,17 @@ python practice.py --no-create -l LIMIT
 # Вывод программы с аргументом `--help`
 
 ```
-usage: practice.py [-h] [-dn DB_NAME] [-pn PCAP_NAME] [-l LIMIT] [--no-create] [--no-show] [--no-save]
+usage: practice.py [-h] [-dn DB_NAME] [-pn PCAP_NAME] [-l LIMIT] [-cl CLUSTERS] [-dim DIMENSION] [--no-create] [--no-show] [--no-save] [--no-proc]
 
 options:
-  -h, --help                            show this help message and exit
-  -dn DB_NAME, --db_name DB_NAME        Database filename
-  -pn PCAP_NAME, --pcap_name PCAP_NAME  Pcap filename
-  -l LIMIT, --limit LIMIT               Min count packets in thread
-  --no-create                           Dont create new database file
-  --no-show                             Dont show windows
-  --no-save                             Dont save windows
+  -h, --help                    	  show this help message and exit
+  -dn DB_NAME, --db_name DB_NAME  	  Database filename
+  -pn PCAP_NAME, --pcap_name PCAP_NAME    Pcap filename
+  -l LIMIT, --limit LIMIT 		  Min count packets in thread
+  -cl CLUSTERS, --clusters CLUSTERS	  Count of clusters
+  -dim DIMENSION, --dimension DIMENSION	  Dimension sample for clustering
+  --no-create           		  Dont create new database file
+  --no-show             		  Dont show windows
+  --no-save             		  Dont save windows
+  --no-proc             		  Skip select streams and append statistic
 ```

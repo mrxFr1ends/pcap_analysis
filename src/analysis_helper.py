@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from prettytable import PrettyTable
+import math
+from .utils import print_table
 from sklearn import metrics
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.utils.multiclass import unique_labels
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve
-from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.cluster import KMeans
 import warnings
 warnings.filterwarnings('ignore')
@@ -18,65 +19,76 @@ def elbow_method(x_data, save=True, show=True):
         kmeans.fit(x_data)
         wcss_list.append(kmeans.inertia_)
     plt.plot(range(1, 11), wcss_list)
-    plt.title('Graph of the Elobw method')
+    plt.title('Graph of the Elbow method')
     plt.xlabel('Number of clusters (k)')
     plt.ylabel('wcss_list')
-    if save: plt.savefig('output/elbow_method.png')
+    if save: plt.savefig(f'output/Elbow method.png')
     if show: plt.show()
 
-def clustering(x_data, count_clusters, save=True, show=True):
+def clustering(x_data, clusters, dimension, save=True, show=True):
     print('-'*19, "Clustering", '-'*19)
-    kmeans = KMeans(n_clusters=count_clusters, init='k-means++')
+    kmeans = KMeans(n_clusters=clusters, init='k-means++')
+    x_data = x_data[:, :dimension]
     y_predict = kmeans.fit_predict(x_data)
-    centroids = kmeans.cluster_centers_
-    np.set_printoptions(precision=3, suppress=True)
+
     print('Centroids: ')
-    [print(i) for i in centroids]
+    labels = ['count packets', 'full size', 'avg size', 'msd size',
+              'full time', 'avg time', 'msd time', 'dir streams', 'rev streams']
+    centroids = kmeans.cluster_centers_
+    print_table(centroids, labels[:dimension])
 
     cols = len(x_data[0])
-    titles = ['count packets', 'full size', 'avg size', 'msd size',
-              'full time', 'avg time', 'msd time', 'dir streams', 'rev streams']
+    max_combs = (cols * (cols - 1)) // 2
+    plot_cols = 6
+    plot_rows = math.ceil(max_combs / plot_cols)
     colors = ['#%02x%02x%02x' % (i, i, i)
-              for i in range(0, 255, 255 // count_clusters)]
+              for i in range(0, 255, 255 // clusters)]
 
     plt.rcParams.update({'font.size': 10})
-    fig, axs = plt.subplots(6, 6, figsize=(18, 6))
+    fig, axs = plt.subplots(nrows=plot_rows, ncols=plot_cols, 
+                            figsize=(18, 6), squeeze=False)
     fig.tight_layout()
     iter = 0
-    # Отрисовка графиков зависимости titles[row] от titles[col]
+    # Отрисовка графиков зависимости labels[row] от labels[col]
     for row in range(cols):
         for col in range(row + 1, cols):
-            _x = iter % 6
-            _y = iter // 6
-            axs[_y, _x].scatter(x_data[:, row], x_data[:, col], s=40,
-                                c=[colors[i] for i in y_predict])
-            axs[_y, _x].set(xlabel=titles[row], ylabel=titles[col])
-            axs[_y, _x].axes.xaxis.set_ticks([])
-            axs[_y, _x].axes.yaxis.set_ticks([])
+            _x = iter % plot_cols
+            _y = iter // plot_cols
+            axs[_y, _x].scatter(x_data[:, row], x_data[:, col], 
+                                s=40, c=[colors[i] for i in y_predict])
             axs[_y, _x].scatter(centroids[:, row],
                                 centroids[:, col], s=20, c='red')
+            axs[_y, _x].set(xlabel=labels[row], ylabel=labels[col])
+            axs[_y, _x].axes.xaxis.set_ticks([])
+            axs[_y, _x].axes.yaxis.set_ticks([])
             iter += 1
-    if save: plt.savefig('output/clusters.png')
+    # Отключение пустых графиков в последней строчке
+    if iter % plot_cols != 0:
+        for _x in range(iter % plot_cols, plot_cols):
+            axs[plot_rows - 1, _x].axis('off')
+        
+    if save: 
+        file_name = f"Graph for clusters {clusters} and dimension {dimension}"
+        plt.savefig('output/'+file_name+'.png')
     if show: plt.show()
 
-def get_confusion_matrix(y_ideal, y_predict, labels, title='Confusion Matrix', save=True, show=True):
+def get_confusion_matrix(y_ideal, y_predict, labels, file_name='Confusion Matrix', save=True, show=True):
     print('-'*16, "Confusion matrix", '-'*16)
     conf_matrix = confusion_matrix(y_ideal, y_predict)
+    print_table(conf_matrix, [], header=False, border=False)
+
     _, ax = plt.subplots(figsize=(7.5, 7.5))
     ax.matshow(conf_matrix, cmap=plt.cm.viridis)
-    table = PrettyTable()
     for i in range(conf_matrix.shape[0]):
         for j in range(conf_matrix.shape[1]):
             ax.text(j, i, conf_matrix[i, j], va='center',
                     ha='center', size='xx-large', c='w')
-        table.add_row(conf_matrix[i])
-    print(table.get_string(header=False, border=False))
     plt.xticks(range(len(labels)), labels, rotation=90)
     plt.yticks(range(len(labels)), labels)
     plt.xlabel('Predictions', fontsize=18)
     plt.ylabel('Actuals', fontsize=18)
-    plt.title(title, fontsize=18)
-    if save: plt.savefig('output/'+title+'.png')
+    plt.title('Confusion Matrix', fontsize=18)
+    if save: plt.savefig('output/'+file_name+'.png')
     if show: plt.show()
 
 def get_classification_report(y_ideal, y_predict, labels):
@@ -86,14 +98,10 @@ def get_classification_report(y_ideal, y_predict, labels):
     print("Other metrics:")
     p, r, f1, s = metrics.precision_recall_fscore_support(
         y_ideal, y_predict, labels=labels)
-    _metrics = zip(labels, p, r, f1, s)
-    table = PrettyTable(["port", "precision", "recall", "f1-score", "count"])
-    table.float_format = '.2'
-    for row in _metrics:
-        table.add_row(row)
-    print(table)
+    _metrics = list(zip(labels, p, r, f1, s))
+    print_table(_metrics, ["port", "precision", "recall", "f1-score", "count"])
 
-def get_roc_curve(y_ideal, proba, title='ROC curve', show=True, save=True):
+def get_roc_curve(y_ideal, proba, file_name='ROC curve', show=True, save=True):
     fpr, tpr, _ = roc_curve(y_ideal, proba)
     plt.figure(figsize=(10, 8))
     plt.plot(fpr, tpr, lw=2, label='ROC curve')
@@ -103,7 +111,7 @@ def get_roc_curve(y_ideal, proba, title='ROC curve', show=True, save=True):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('ROC curve')
-    if save: plt.savefig('output/'+title+'.png')
+    if save: plt.savefig('output/'+file_name+'.png')
     if show: plt.show()
 
 def classification(x_data, y_data, test_size=0.1, save=True, show=True):
@@ -125,28 +133,35 @@ def classification(x_data, y_data, test_size=0.1, save=True, show=True):
     get_classification_report(y_test, y_predict, labels)
     get_confusion_matrix(y_test, y_predict, labels, save=save, show=show)
 
-def prediction(x_data, y_data, save=True, show=True):
+def prediction(data, save=True, show=True):
     print('-'*19, "Prediction", '-'*19)
-    y, counts = np.unique(y_data, return_counts=True)
+
+    y, counts = np.unique(data, return_counts=True)
     pivot = y[counts == counts.max()][0]
+    y_ideal = np.array(data == pivot, dtype=int)
     print("Pivot value:", pivot)
-    y_ideal = np.array(y_data == pivot, dtype=int)
-    for window in np.linspace(1, int(len(x_data) * 0.9), 5, dtype=int):
-        predicts = []
-        proba = []
-        classificator = MLPClassifier(max_iter=1)
-        for index in range(window, len(x_data)):
-            _x = x_data[index - window:index]
-            _y = y_ideal[index - window:index]
-            x_predict = x_data[index]
-            predict = classificator.fit(_x, _y).predict([x_predict])
-            predicts.extend(predict)
-            proba.extend(classificator.predict_proba([x_predict])[::,1])
-        
-        title = ' for pivot {} and window size {}'.format(pivot, window)
-        print("Window size:", window)
-        get_classification_report(y_ideal[window:], predicts, labels=[0, 1])
-        get_confusion_matrix(y_ideal[window:], predicts, labels=[0, 1], 
-                             title='Confusion matrix' + title, save=save, show=show)
-        # TODO: Зачем это в prediction? Пока не понял. Нужно сделать в classification
-        get_roc_curve(y_ideal[window:], proba, title='ROC curve' + title, show=show, save=save)
+
+    len_data = len(data)
+    print("Data size:", len_data)
+
+    for window in np.linspace(1, int(len_data * 0.3), 3, dtype=int):
+        for train_coeff in [0.7, 0.5, 0.4]:
+            train_size = int(len_data * train_coeff)
+            _y = [y_ideal[index - window:index] for index in range(window, train_size - 1)]
+            log_reg = LogisticRegression()
+            log_reg.fit(_y, np.asarray(y_ideal[window:train_size - 1], dtype=int).T)    
+
+            predicts = []
+            proba = []
+            for index in range(train_size + 1, len_data):
+                predict = log_reg.predict([y_ideal[index - window:index]])[0]
+                predicts.append(1 if predict >= 0.5 else 0)
+                proba.extend(log_reg.predict_proba([y_ideal[index - window:index]])[::, 1])
+
+            file_name = ' for pivot {}, window size {} and train size {}'.format(pivot, window, train_size)
+            print("Window size:", window, " Train size:", train_coeff)
+            get_classification_report(y_ideal[train_size + 1:], predicts, labels=[0, 1])
+            get_confusion_matrix(y_ideal[train_size + 1:], predicts, labels=[0, 1], 
+                                file_name='Confusion Matrix ' + file_name, save=save, show=show)
+            get_roc_curve(y_ideal[train_size + 1:], proba,
+                          file_name='ROC curve ' + file_name, show=show, save=save)
