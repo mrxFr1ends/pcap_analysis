@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import seaborn as sn
 import numpy as np
 import math
 from .utils import print_table
@@ -18,12 +19,14 @@ def elbow_method(x_data, save=True, show=True):
         kmeans = KMeans(n_clusters=i, init='k-means++')
         kmeans.fit(x_data)
         wcss_list.append(kmeans.inertia_)
+    figure = plt.figure()
     plt.plot(range(1, 11), wcss_list)
     plt.title('Graph of the Elbow method')
     plt.xlabel('Number of clusters (k)')
     plt.ylabel('wcss_list')
     if save: plt.savefig(f'output/Elbow method.png')
     if show: plt.show()
+    plt.close(figure)
 
 def clustering(x_data, clusters, dimension, save=True, show=True):
     print('-'*19, "Clustering", '-'*19)
@@ -43,11 +46,10 @@ def clustering(x_data, clusters, dimension, save=True, show=True):
     plot_rows = math.ceil(max_combs / plot_cols)
     colors = ['#%02x%02x%02x' % (i, i, i)
               for i in range(0, 255, 255 // clusters)]
-
     plt.rcParams.update({'font.size': 10})
-    fig, axs = plt.subplots(nrows=plot_rows, ncols=plot_cols, 
+    figure, axs = plt.subplots(nrows=plot_rows, ncols=plot_cols, 
                             figsize=(18, 6), squeeze=False)
-    fig.tight_layout()
+    figure.tight_layout()
     iter = 0
     # Отрисовка графиков зависимости labels[row] от labels[col]
     for row in range(cols):
@@ -71,25 +73,22 @@ def clustering(x_data, clusters, dimension, save=True, show=True):
         file_name = f"Graph for clusters {clusters} and dimension {dimension}"
         plt.savefig('output/'+file_name+'.png')
     if show: plt.show()
+    plt.close(figure)
 
 def get_confusion_matrix(y_ideal, y_predict, labels, file_name='Confusion Matrix', save=True, show=True):
     print('-'*16, "Confusion matrix", '-'*16)
     conf_matrix = confusion_matrix(y_ideal, y_predict)
     print_table(conf_matrix, [], header=False, border=False)
-
-    _, ax = plt.subplots(figsize=(7.5, 7.5))
-    ax.matshow(conf_matrix, cmap=plt.cm.viridis)
-    for i in range(conf_matrix.shape[0]):
-        for j in range(conf_matrix.shape[1]):
-            ax.text(j, i, conf_matrix[i, j], va='center',
-                    ha='center', size='xx-large', c='w')
-    plt.xticks(range(len(labels)), labels, rotation=90)
-    plt.yticks(range(len(labels)), labels)
+    
+    figure = plt.figure()
+    sn.heatmap(conf_matrix, annot=True, xticklabels=labels, yticklabels=labels, cmap="viridis")
     plt.xlabel('Predictions', fontsize=18)
     plt.ylabel('Actuals', fontsize=18)
     plt.title('Confusion Matrix', fontsize=18)
-    if save: plt.savefig('output/'+file_name+'.png')
+    figure.tight_layout(rect=[0, 0.03, 1, 0.95])
+    if save: plt.savefig('output/'+file_name+'.png', dpi=400, bbox_inches="tight")
     if show: plt.show()
+    plt.close(figure)
 
 def get_classification_report(y_ideal, y_predict, labels):
     print('-'*13, "Classification  report", '-'*13)
@@ -103,7 +102,7 @@ def get_classification_report(y_ideal, y_predict, labels):
 
 def get_roc_curve(y_ideal, proba, file_name='ROC curve', show=True, save=True):
     fpr, tpr, _ = roc_curve(y_ideal, proba)
-    plt.figure(figsize=(10, 8))
+    figure = plt.figure(figsize=(10, 8))
     plt.plot(fpr, tpr, lw=2, label='ROC curve')
     plt.plot([0, 1], [0, 1])
     plt.xlim([0.0, 1.0])
@@ -111,8 +110,10 @@ def get_roc_curve(y_ideal, proba, file_name='ROC curve', show=True, save=True):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('ROC curve')
+    figure.tight_layout(rect=[0, 0.03, 1, 0.95])
     if save: plt.savefig('output/'+file_name+'.png')
     if show: plt.show()
+    plt.close(figure)
 
 def classification(x_data, y_data, test_size=0.1, save=True, show=True):
     # Чтобы сделать адекватную ROC кривую (как и матрицу ошибок)
@@ -159,7 +160,7 @@ def prediction(data, save=True, show=True):
                 proba.extend(log_reg.predict_proba([y_ideal[index - window:index]])[::, 1])
 
             file_name = ' for pivot {}, window size {} and train size {}'.format(pivot, window, train_size)
-            print("Window size:", window, " Train size:", train_coeff)
+            print("Window size:", window, " Train size:", train_size, " Test size:", len_data - train_size)
             get_classification_report(y_ideal[train_size + 1:], predicts, labels=[0, 1])
             get_confusion_matrix(y_ideal[train_size + 1:], predicts, labels=[0, 1], 
                                 file_name='Confusion Matrix ' + file_name, save=save, show=show)

@@ -29,7 +29,7 @@ if __name__ == '__main__':
         elaps_time += elapsed_time(select_streams, args.db_name, args.limit)
         elaps_time += elapsed_time(append_statistics, args.db_name)
         elaps_time += elapsed_time(print_statistic, args.db_name)
-    if args.no_create == True and args.no_proc == True:
+    if args.no_create == False or args.no_proc == False:
         print(f"All elapsed time: {elaps_time:0.3f} seconds")
     
     # Получение всех строк из таблицы streams
