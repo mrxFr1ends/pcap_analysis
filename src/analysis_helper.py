@@ -28,15 +28,13 @@ def elbow_method(x_data, save=True, show=True):
     if show: plt.show()
     plt.close(figure)
 
-def clustering(x_data, clusters, dimension, save=True, show=True):
+def clustering(x_data, clusters, dimension, labels, save=True, show=True):
     print('-'*19, "Clustering", '-'*19)
     kmeans = KMeans(n_clusters=clusters, init='k-means++')
     x_data = x_data[:, :dimension]
     y_predict = kmeans.fit_predict(x_data)
 
     print('Centroids: ')
-    labels = ['count packets', 'full size', 'avg size', 'msd size',
-              'full time', 'avg time', 'msd time', 'dir streams', 'rev streams']
     centroids = kmeans.cluster_centers_
     print_table(centroids, labels[:dimension])
 
@@ -81,7 +79,9 @@ def get_confusion_matrix(y_ideal, y_predict, labels, file_name='Confusion Matrix
     print_table(conf_matrix, [], header=False, border=False)
     
     figure = plt.figure()
-    sn.heatmap(conf_matrix, annot=True, xticklabels=labels, yticklabels=labels, cmap="viridis")
+    hm = sn.heatmap(conf_matrix, annot=True, cmap="viridis")
+    hm.set_xticklabels(labels, rotation=90, horizontalalignment='right')
+    hm.set_yticklabels(labels, rotation=0, horizontalalignment='right')
     plt.xlabel('Predictions', fontsize=18)
     plt.ylabel('Actuals', fontsize=18)
     plt.title('Confusion Matrix', fontsize=18)

@@ -39,8 +39,10 @@ if __name__ == '__main__':
     x = np.array(streams)[:, 5:].astype(float)
 
     # Кластеризация
+    labels = ['count packets', 'full size', 'avg size', 'msd size',
+              'full time', 'avg time', 'msd time', 'dir streams', 'rev streams']
     elbow_method(x, save=_save, show=_show)
-    clustering(x, args.clusters, args.dimension, save=_save, show=_show)
+    clustering(x, args.clusters, args.dimension, labels, save=_save, show=_show)
     
     # Классификация
     # Берем колонку с source port
